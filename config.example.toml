@@ -1,0 +1,46 @@
+# jura configuration
+#
+# Location (first match wins): --config <path>, $JURA_CONFIG, ./jura.toml,
+# or the platform config dir (Windows: %APPDATA%\jura\config\config.toml,
+# Linux: ~/.config/jura/config.toml, macOS: ~/Library/Application Support/jura/config.toml).
+
+# Project key. Available as {project} inside filter JQL.
+project = "ABC"
+
+# Background revalidation interval for all filters.
+refresh_interval_secs = 60
+# Cached data older than this is revalidated as soon as it is shown.
+stale_after_secs = 30
+# Maximum number of issues fetched per filter.
+max_results = 300
+# Issue type pre-selected in the "new issue" popup (n).
+default_issue_type = "Task"
+
+[jira]
+url = "https://your-company.atlassian.net"
+# Jira Cloud: your Atlassian account e-mail + an API token from
+# https://id.atlassian.com/manage-profile/security/api-tokens
+# Jira Server / Data Center: set deployment = "server"; either give a username
+# and password here, or omit `email` to authenticate with a Personal Access Token.
+email = "you@example.com"
+api_token = "your-api-token"
+# env var with token
+# api_token_env = "JIRA_API_TOKEN"
+deployment = "cloud"
+
+[status_names]
+"To Do" = "Todo"
+"In Progress" = "WIP"
+"Code Review" = "Review"
+
+[[filters]]
+name = "Mine"
+jql = "project = {project} AND assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC"
+
+[[filters]]
+name = "Open"
+jql = "project = {project} AND statusCategory != Done ORDER BY priority DESC, updated DESC"
+
+[[filters]]
+name = "Recently updated"
+jql = "project = {project} AND updated >= -7d ORDER BY updated DESC"
