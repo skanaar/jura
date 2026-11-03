@@ -103,6 +103,13 @@ fn panel_block(border: Style) -> Block<'static> {
         .border_style(border)
 }
 
+/// Renders a one-row footer inside a panel: `left` flush left, `right` flush right.
+fn draw_footer(f: &mut Frame, area: Rect, left: Line, right: Line) {
+    let area = Rect { x: area.x + 1, width: area.width.saturating_sub(2), ..area };
+    f.render_widget(Line::from(left), area);
+    f.render_widget(right.right_aligned(), area);
+}
+
 pub fn status_color(category: &str) -> Color {
     match category {
         "new" => Color::Blue,

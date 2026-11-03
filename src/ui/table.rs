@@ -1,5 +1,5 @@
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Rect};
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Cell, Paragraph, Row, Table};
@@ -58,9 +58,11 @@ pub(super) fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         Line::default()
     };
 
-    let block = panel_block(border)
-        .title_bottom(Line::from(title))
-        .title_bottom(freshness.right_aligned());
+    let block = panel_block(border);
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+    let [area, footer] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(inner);
+    draw_footer(f, footer, Line::from(title), freshness);
 
     if visible.is_empty() {
         let msg = if filter.fetched_at.is_none() && filter.loading {
@@ -72,7 +74,7 @@ pub(super) fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         } else {
             "No issues match this filter.".into()
         };
-        f.render_widget(Paragraph::new(msg).style(DIM).centered().block(block), area);
+        f.render_widget(Paragraph::new(msg).style(DIM).centered(), area);
         return;
     }
 
@@ -106,7 +108,6 @@ pub(super) fn draw(f: &mut Frame, app: &mut App, area: Rect) {
 
     let table = Table::new(rows, widths)
         .header(Row::new(header).style(Style::new().fg(Color::Gray).bold()))
-        .block(block)
         .column_spacing(1)
         .row_highlight_style(if focused {
             Style::new().bg(Color::Rgb(40, 60, 80)).bold()

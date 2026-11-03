@@ -1,5 +1,5 @@
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Paragraph, Wrap};
@@ -37,37 +37,23 @@ pub(super) fn draw(f: &mut Frame, app: &App, area: Rect) {
     let active = DetailTab::ALL.iter().position(|t| *t == app.detail_tab).unwrap_or(0);
     let area = draw_tab_header(f, area, &tabs, active, border);
 
-    let mut block = panel_block(border);
+    let block = panel_block(border);
     let Some(issue) = issue else {
         f.render_widget(block, area);
         return;
     };
     let key = issue.key.as_str();
 
-    block = block.title_bottom(Line::from(vec![
-        Span::raw(" "),
-        Span::styled(key.to_string(), Style::new().fg(ACCENT).bold()),
-        Span::raw(" "),
-    ]));
-    if app.details_loading.contains(key) {
-        block = block.title_bottom(
-            Line::from(format!(" {} refreshing ", spinner(app)))
-                .fg(Color::Yellow)
-                .right_aligned(),
-        );
+    let key_line = Line::from(Span::styled(key.to_string(), Style::new().fg(ACCENT).bold()));
+    let status_line = if app.details_loading.contains(key) {
+        Line::from(format!("{} refreshing", spinner(app))).fg(Color::Yellow)
     } else if let Some(e) = app.detail_errors.get(key) {
-        block = block.title_bottom(
-            Line::from(format!(" ✗ {} ", truncate(e, 50)))
-                .fg(Color::Red)
-                .right_aligned(),
-        );
+        Line::from(format!("✗ {}", truncate(e, 50))).fg(Color::Red)
     } else if let Some(d) = detail {
-        block = block.title_bottom(
-            Line::from(format!(" updated {} ago ", ago(d.fetched_at)))
-                .style(DIM)
-                .right_aligned(),
-        );
-    }
+        Line::from(format!("updated {} ago", ago(d.fetched_at))).style(DIM)
+    } else {
+        Line::default()
+    };
 
     let label = |s: &str| Span::styled(format!("{s:<10}"), DIM);
     let mut lines: Vec<Line> = vec![Line::from(issue.summary.clone()).bold(), Line::default()];
@@ -161,7 +147,13 @@ pub(super) fn draw(f: &mut Frame, app: &App, area: Rect) {
 
     let inner = block.inner(area);
     f.render_widget(block, area);
-    let body = inner;
+    let [inner, footer] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(inner);
+    draw_footer(f, footer, key_line, status_line);
+    let body = Rect {
+        x: inner.x + 1,
+        width: inner.width.saturating_sub(2),
+        ..inner
+    };
 
     let max_scroll = lines.len().saturating_sub(1) as u16;
     let para = Paragraph::new(Text::from(lines))

@@ -1,4 +1,4 @@
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use super::{Comment, Issue, Transition};
 
@@ -116,6 +116,17 @@ fn adf_block(node: &Value, out: &mut String) {
             }
             out.push('\n');
         }
+        "taskList" => {
+            for item in children(node) {
+                let done = item["attrs"]["state"] == "DONE";
+                let mut text = String::new();
+                adf_inline(item, &mut text);
+                out.push_str(if done { "☑ " } else { "☐ " });
+                out.push_str(&text);
+                out.push('\n');
+            }
+            out.push('\n');
+        }
         "codeBlock" => {
             let mut code = String::new();
             adf_inline(node, &mut code);
@@ -189,5 +200,77 @@ fn adf_inline_node(node: &Value, out: &mut String) {
         }
         "date" => out.push_str(attrs["timestamp"].as_str().unwrap_or_default()),
         _ => adf_inline(node, out),
+    }
+}
+
+/// Converts plain text to ADF blocks. Lines starting with `- ` / `* ` become bullet
+/// lists and `- [ ] ` / `- [x] ` become checkbox (task) lists; everything else is one
+/// paragraph per line.
+pub(super) fn markdown_blocks(text: &str) -> Vec<Value> {
+    enum Line<'a> {
+        Bullet(&'a str),
+        Task(bool, &'a str),
+        Para(&'a str),
+    }
+    fn classify(line: &str) -> Line<'_> {
+        let t = line.trim_start();
+        let Some(rest) = t.strip_prefix("- ").or_else(|| t.strip_prefix("* ")) else {
+            return Line::Para(line);
+        };
+        for (marker, done) in [("[ ] ", false), ("[x] ", true), ("[X] ", true)] {
+            if let Some(item) = rest.strip_prefix(marker) {
+                return Line::Task(done, item);
+            }
+        }
+        Line::Bullet(rest)
+    }
+    fn inline(s: &str) -> Vec<Value> {
+        if s.is_empty() { vec![] } else { vec![json!({ "type": "text", "text": s })] }
+    }
+
+    let mut blocks: Vec<Value> = Vec::new();
+    let mut task_id = 0u32;
+    for line in text.lines() {
+        match classify(line) {
+            Line::Bullet(s) => {
+                let item = json!({ "type": "listItem", "content": [{ "type": "paragraph", "content": inline(s) }] });
+                match blocks.last_mut().filter(|b| b["type"] == "bulletList") {
+                    Some(list) => list["content"].as_array_mut().unwrap().push(item),
+                    None => blocks.push(json!({ "type": "bulletList", "content": [item] })),
+                }
+            }
+            Line::Task(done, s) => {
+                task_id += 1;
+                let item = json!({
+                    "type": "taskItem",
+                    "attrs": { "localId": format!("task-{task_id}"), "state": if done { "DONE" } else { "TODO" } },
+                    "content": inline(s),
+                });
+                match blocks.last_mut().filter(|b| b["type"] == "taskList") {
+                    Some(list) => list["content"].as_array_mut().unwrap().push(item),
+                    None => blocks.push(json!({
+                        "type": "taskList",
+                        "attrs": { "localId": format!("list-{task_id}") },
+                        "content": [item],
+                    })),
+                }
+            }
+            Line::Para(s) => blocks.push(json!({ "type": "paragraph", "content": inline(s) })),
+        }
+    }
+    blocks
+}
+
+#[cfg(test)]
+mod markdown_tests {
+    use super::*;
+
+    #[test]
+    fn lists_and_checkboxes() {
+        let b = markdown_blocks("intro\n- a\n- b\n- [ ] todo\n- [x] done\nend");
+        let types: Vec<_> = b.iter().map(|x| x["type"].as_str().unwrap()).collect();
+        assert_eq!(types, ["paragraph", "bulletList", "taskList", "paragraph"]);
+        assert_eq!(b[1]["content"].as_array().unwrap().len(), 2);
+        assert_eq!(b[2]["content"][1]["attrs"]["state"], "DONE");
     }
 }

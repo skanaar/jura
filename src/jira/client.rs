@@ -5,7 +5,7 @@ use reqwest::{Client, Method, RequestBuilder, header};
 use serde_json::{Value, json};
 use tokio::sync::OnceCell;
 
-use super::parse::{error_message, parse_comment, parse_issue, parse_transitions, rich_text};
+use super::parse::{error_message, markdown_blocks, parse_comment, parse_issue, parse_transitions, rich_text};
 use super::{Issue, IssueDetail, Me, Transition};
 use crate::config::{Config, Deployment};
 
@@ -161,17 +161,7 @@ impl JiraClient {
         if !self.cloud {
             return json!(text);
         }
-        let paragraphs: Vec<Value> = text
-            .lines()
-            .map(|line| {
-                if line.is_empty() {
-                    json!({ "type": "paragraph", "content": [] })
-                } else {
-                    json!({ "type": "paragraph", "content": [{ "type": "text", "text": line }] })
-                }
-            })
-            .collect();
-        json!({ "type": "doc", "version": 1, "content": paragraphs })
+        json!({ "type": "doc", "version": 1, "content": markdown_blocks(text) })
     }
 
     pub async fn add_comment(&self, key: &str, text: &str) -> Result<()> {
