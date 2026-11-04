@@ -12,7 +12,7 @@ use crate::config::{Config, Deployment};
 /// Fields requested for list views. Kept small so searches stay fast.
 const LIST_FIELDS: &[&str] = &[
     "summary", "status", "issuetype", "priority", "assignee", "reporter", "created", "updated",
-    "labels",
+    "labels", "fixVersions",
 ];
 
 

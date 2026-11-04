@@ -21,6 +21,8 @@ pub struct Issue {
     pub created: String,
     pub updated: String,
     pub labels: Vec<String>,
+    #[serde(default)]
+    pub fix_versions: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

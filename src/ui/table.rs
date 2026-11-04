@@ -16,12 +16,9 @@ pub(super) fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         .iter()
         .enumerate()
         .map(|(i, flt)| {
-            let mut name = flt.name.clone();
-            if flt.loading {
-                name = format!("{name} {}", spinner(app));
-            }
+            let name = flt.name.clone();
             let style = if i == app.active {
-                Style::new().fg(ACCENT).bold()
+                if focused { Style::new().fg(ACCENT).bold() } else { Style::new().fg(Color::Gray).bold() }
             } else if flt.error.is_some() {
                 Style::new().fg(Color::Red)
             } else {
@@ -35,25 +32,20 @@ pub(super) fn draw(f: &mut Frame, app: &mut App, area: Rect) {
     let filter = app.active_filter();
     let visible = app.visible();
 
-    let mut title = vec![Span::raw(" ")];
+    let mut title = vec![Span::raw(format!("{}/{}", visible.len(), filter.issues.len()))];
     if !app.search.is_empty() {
         title.push(Span::styled(
             format!("  /{}", app.search),
             Style::new().fg(Color::Yellow),
         ));
     }
-    title.push(Span::raw(format!(
-        "  {}/{} ",
-        visible.len(),
-        filter.issues.len()
-    )));
 
     let freshness = if filter.loading {
-        Line::from(format!(" {} refreshing ", spinner(app))).fg(Color::Yellow)
+        Line::from(format!("{} refreshing", spinner(app))).fg(Color::Yellow)
     } else if let Some(e) = &filter.error {
-        Line::from(format!(" ✗ {} ", truncate(e, 60))).fg(Color::Red)
+        Line::from(format!("✗ {}", truncate(e, 60))).fg(Color::Red)
     } else if let Some(t) = filter.fetched_at {
-        Line::from(format!(" updated {} ago ", ago(t))).style(DIM)
+        Line::from(format!("updated {} ago", ago(t))).style(DIM)
     } else {
         Line::default()
     };
@@ -63,6 +55,7 @@ pub(super) fn draw(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_widget(block, area);
     let [area, footer] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(inner);
     draw_footer(f, footer, Line::from(title), freshness);
+    let area = Rect { width: area.width.saturating_sub(1), ..area };
 
     if visible.is_empty() {
         let msg = if filter.fetched_at.is_none() && filter.loading {
@@ -126,7 +119,7 @@ fn issue_row(i: &Issue, status: &str, status_w: usize, wide: bool) -> Row<'stati
     let mut cells = vec![
         Cell::from(i.key.clone()).style(Style::new().fg(ACCENT)),
         Cell::from(truncate(status, status_w))
-            .style(Style::new().fg(status_color(&i.status_category))),
+            .style(Style::new().fg(Color::White)),
     ];
     if wide {
         let p = i.priority.clone().unwrap_or_default();

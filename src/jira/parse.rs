@@ -44,6 +44,10 @@ pub(super) fn parse_issue(v: &Value) -> Issue {
             .as_array()
             .map(|a| a.iter().filter_map(|l| l.as_str().map(String::from)).collect())
             .unwrap_or_default(),
+        fix_versions: f["fixVersions"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| str_at(v, &["name"])).collect())
+            .unwrap_or_default(),
     }
 }
 

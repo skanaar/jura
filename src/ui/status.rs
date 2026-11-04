@@ -20,8 +20,6 @@ pub(super) fn draw(f: &mut Frame, app: &App, area: Rect) {
 
     let hints: &[(&str, &str)] = match app.focus {
         Focus::List => &[
-            ("j/k", "move"),
-            ("⇥", "filter"),
             ("/", "search"),
             ("⏎", "open"),
             ("n", "new"),

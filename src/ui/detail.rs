@@ -23,11 +23,12 @@ pub(super) fn draw(f: &mut Frame, app: &App, area: Rect) {
             };
             if *t == DetailTab::Comments
                 && let Some(d) = detail
+                && !d.data.comments.is_empty()
             {
                 name = format!("{name} ({})", d.data.comments.len());
             }
             let style = if *t == app.detail_tab {
-                Style::new().fg(ACCENT).bold()
+                if focused { Style::new().fg(ACCENT).bold() } else { Style::new().fg(Color::Gray).bold() }
             } else {
                 Style::new().fg(Color::Gray)
             };
@@ -55,8 +56,12 @@ pub(super) fn draw(f: &mut Frame, app: &App, area: Rect) {
         Line::default()
     };
 
-    let label = |s: &str| Span::styled(format!("{s:<10}"), DIM);
-    let mut lines: Vec<Line> = vec![Line::from(issue.summary.clone()).bold(), Line::default()];
+    let label = |s: &str| Span::styled(format!("{s:<19}"), DIM);
+    let rule_w = block.inner(area).width.saturating_sub(2) as usize;
+    let mut lines: Vec<Line> = vec![
+        Line::from(issue.summary.clone()).bold(),
+        Line::from("─".repeat(rule_w)).style(DIM),
+    ];
 
     match app.detail_tab {
         DetailTab::Info => {
@@ -64,7 +69,7 @@ pub(super) fn draw(f: &mut Frame, app: &App, area: Rect) {
                 label("Status"),
                 Span::styled(
                     app.cfg.status_label(&issue.status).to_string(),
-                    Style::new().fg(status_color(&issue.status_category)).bold(),
+                    Style::new().fg(Color::White).bold(),
                 ),
             ]));
             lines.push(Line::from(vec![label("Type"), Span::raw(issue.issue_type.clone())]));
@@ -90,6 +95,12 @@ pub(super) fn draw(f: &mut Frame, app: &App, area: Rect) {
                 lines.push(Line::from(vec![
                     label("Labels"),
                     Span::styled(issue.labels.join(", "), Style::new().fg(Color::Magenta)),
+                ]));
+            }
+            if !issue.fix_versions.is_empty() {
+                lines.push(Line::from(vec![
+                    label("Version för åtgärd"),
+                    Span::raw(issue.fix_versions.join(", ")),
                 ]));
             }
             lines.push(Line::from(vec![
@@ -155,10 +166,11 @@ pub(super) fn draw(f: &mut Frame, app: &App, area: Rect) {
         ..inner
     };
 
-    let max_scroll = lines.len().saturating_sub(1) as u16;
-    let para = Paragraph::new(Text::from(lines))
-        .wrap(Wrap { trim: false })
-        .scroll((app.detail_scroll.min(max_scroll), 0));
+    let para = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
+    let total = para.line_count(body.width);
+    let max_scroll = total.saturating_sub(body.height as usize).min(u16::MAX as usize) as u16;
+    app.detail_max_scroll.set(max_scroll);
+    let para = para.scroll((app.detail_scroll.min(max_scroll), 0));
     f.render_widget(para, body);
 }
 

@@ -74,6 +74,7 @@ async fn main() -> Result<()> {
     app.start();
 
     let mut terminal = ratatui::init();
+    crossterm::execute!(std::io::stdout(), crossterm::terminal::SetTitle("🦕 Jura"))?;
     let result = run(&mut terminal, &mut app, rx).await;
     ratatui::restore();
     result

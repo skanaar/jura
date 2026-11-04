@@ -18,6 +18,24 @@ fn popup(area: Rect, width: u16, height: u16) -> Rect {
     }
 }
 
+/// Blanks the popup plus a 1-cell margin around it so it doesn't touch what is behind.
+fn clear_with_margin(f: &mut Frame, area: Rect) {
+    f.render_widget(Clear, area.outer(ratatui::layout::Margin::new(1, 1)).intersection(f.area()));
+}
+
+/// Dialog footer: dim hints separated by a dash in the border colour.
+fn hints(items: &[&str]) -> Line<'static> {
+    let mut spans = vec![Span::raw(" ")];
+    for (i, item) in items.iter().enumerate() {
+        if i > 0 {
+            spans.push(Span::styled(" - ", Style::new().fg(ACCENT)));
+        }
+        spans.push(Span::styled(item.to_string(), DIM));
+    }
+    spans.push(Span::raw(" "));
+    Line::from(spans).right_aligned()
+}
+
 pub(super) fn transitions(f: &mut Frame, app: &mut App) {
     let Mode::Transition { key, list } = &mut app.mode else {
         return;
@@ -36,7 +54,7 @@ pub(super) fn transitions(f: &mut Frame, app: &mut App) {
             Line::from(format!(" {} ", SPINNER[app.spinner % SPINNER.len()])).right_aligned(),
         );
     }
-    f.render_widget(Clear, area);
+    clear_with_margin(f, area);
 
     match options {
         Some(opts) if !opts.is_empty() => {
@@ -45,7 +63,7 @@ pub(super) fn transitions(f: &mut Frame, app: &mut App) {
                 .map(|t| {
                     let to = Span::styled(
                         app.cfg.status_label(&t.to).to_string(),
-                        Style::new().fg(status_color(&t.to_category)),
+                        Style::new().fg(Color::White),
                     );
                     // Transitions are often named after their target status; show that once.
                     let spans = if t.name == t.to {
@@ -82,15 +100,13 @@ pub(super) fn comment(f: &mut Frame, app: &App) {
         return;
     };
     let area = popup(f.area(), 80, 12);
-    f.render_widget(Clear, area);
+    clear_with_margin(f, area);
     let block = Block::bordered()
         .border_type(BorderType::Rounded)
         .border_style(Style::new().fg(ACCENT))
         .title(format!(" Comment on {key} "))
         .title_bottom(
-            Line::from(" Enter send · Alt+Enter newline · Esc cancel ")
-                .style(DIM)
-                .right_aligned(),
+            hints(&["Enter send", "Alt+Enter newline", "Esc cancel"]),
         );
     let mut lines: Vec<Line> = text
         .split('\n')
@@ -123,15 +139,13 @@ pub(super) fn create(f: &mut Frame, app: &mut App) {
 
     let height = types.len().clamp(1, 8) as u16 + 5;
     let area = popup(f.area(), 60, height);
-    f.render_widget(Clear, area);
+    clear_with_margin(f, area);
     let block = Block::bordered()
         .border_type(BorderType::Rounded)
         .border_style(Style::new().fg(ACCENT))
         .title(format!(" New issue in {} ", app.cfg.project))
         .title_bottom(
-            Line::from(" Enter create · ↑/↓ type · Esc cancel ")
-                .style(DIM)
-                .right_aligned(),
+            hints(&["Enter create", "↑/↓ type", "Esc cancel"]),
         );
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -193,7 +207,7 @@ pub(super) fn help(f: &mut Frame) {
         })
         .collect();
     let area = popup(f.area(), 74, lines.len() as u16 + 4);
-    f.render_widget(Clear, area);
+    clear_with_margin(f, area);
     let block = Block::bordered()
         .border_type(BorderType::Rounded)
         .border_style(Style::new().fg(ACCENT))

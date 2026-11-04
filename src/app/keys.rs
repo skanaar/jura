@@ -123,7 +123,8 @@ impl App {
     }
 
     pub(super) fn scroll(&mut self, delta: i32) {
-        self.detail_scroll = (self.detail_scroll as i32 + delta).clamp(0, u16::MAX as i32) as u16;
+        let max = self.detail_max_scroll.get() as i32;
+        self.detail_scroll = (self.detail_scroll as i32).min(max).saturating_add(delta).clamp(0, max) as u16;
     }
 
     pub(super) fn on_key_search(&mut self, key: KeyEvent) {

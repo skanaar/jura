@@ -102,6 +102,8 @@ pub struct App {
     pub focus: Focus,
     pub show_preview: bool,
     pub detail_scroll: u16,
+    /// Largest useful `detail_scroll`, measured by the last draw.
+    pub detail_max_scroll: std::cell::Cell<u16>,
     pub detail_tab: DetailTab,
 
     pub details: HashMap<String, DetailEntry>,
@@ -160,6 +162,7 @@ impl App {
             focus: Focus::List,
             show_preview: true,
             detail_scroll: 0,
+            detail_max_scroll: std::cell::Cell::new(0),
             detail_tab: DetailTab::Description,
             details: HashMap::new(),
             details_loading: HashSet::new(),
